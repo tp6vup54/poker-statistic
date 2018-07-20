@@ -6,7 +6,17 @@ summary {
     font-size: 24px;
 }
 
+.play {
+    font-size: 36px;
+}
+
+.round {
+
+}
+
 .hand-cards {
+    padding-top: 10px;
+    padding-bottom: 10px;
     display: inline-flex;
 }
 
@@ -18,6 +28,59 @@ summary {
 }
 
 .img-set {
+}
+
+.operation-frame {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: inline-flex;
+}
+
+.operation-frame:before {
+    vertical-align: middle;
+    height: 100%;
+}
+
+.operation-name {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.operation-value {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 24px;
+}
+
+.operation-item {
+    padding-left: 10px;
+    padding-right: 10px;
+    text-align: center;
+}
+
+.operation-pair {
+    padding-bottom: 10px;
+    text-align: justify;
+}
+
+.raise {
+    color: red;
+}
+
+.call {
+    color: green;
+}
+
+.fold {
+    color: gray;
+}
+
+.fas {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 90px;
 }
 
 img {

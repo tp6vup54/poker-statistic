@@ -1,7 +1,11 @@
 import os
+import json
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
+
+
+content = None
 
 
 class Index(tornado.web.RequestHandler):
@@ -25,6 +29,8 @@ class Socket(tornado.websocket.WebSocketHandler):
     def open(self):
         print('Open a web socket.')
         SocketManager.add_connection(self)
+        if content:
+            self.write_message(content.get('0001'))
 
     def on_close(self):
         print('Close a web socket.')
@@ -36,6 +42,13 @@ class Socket(tornado.websocket.WebSocketHandler):
             c.write_message(message)
 
 
+def parse_full_json():
+    f = open('0716181912_action.log', 'r')
+    global content
+    content = json.load(f)
+    f.close()
+
+
 settings = {
     'static_path': os.path.join(os.path.dirname(__file__), 'website/static'),
     'autoreload': True,
@@ -43,6 +56,7 @@ settings = {
 
 
 if __name__ == '__main__':
+    parse_full_json()
     app = tornado.web.Application([
         (r'/', Index),
         (r'/socket', Socket),

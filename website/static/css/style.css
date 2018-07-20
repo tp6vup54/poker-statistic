@@ -1,0 +1,27 @@
+body {
+    font-family: "Segoe UI",Arial,sans-serif;
+}
+
+summary {
+    font-size: 24px;
+}
+
+.hand-cards {
+    display: inline-flex;
+}
+
+.card-pair {
+    padding-left: 10px;
+    padding-right: 10px;
+    display: block;
+    text-align: center;
+}
+
+.img-set {
+}
+
+img {
+    width: 60px;
+    border: 1px solid gray;
+    border-radius: 5px;
+}

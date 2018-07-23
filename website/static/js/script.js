@@ -2,6 +2,9 @@ const socket = new WebSocket('ws://' + location.host + '/socket');
 const myHash = ['6ff67167cdf5f3734d43497f6d7bd779'];
 var count = 1;
 var hashMap = {};
+var totalRound = 0;
+var winRound = 0;
+const roundDetails = [];
 const charMap = {
     'J': 'jack',
     'Q': 'queen',
@@ -33,22 +36,70 @@ socket.onmessage = function(e) {
     const msg = JSON.parse(e.data);
     console.log(msg);
     const parent = document.querySelector('body');
-    const detail = getDetails(count++, 'play');
+    parseHash(msg.cards);
+    const detail = getDetails(count++, 'play', msg[' win'][0]);
     const handCards = getRenderedHandCards(msg.cards);
-    handCards.appendChild(getWinner(msg[' win'][0]));
     detail.appendChild(handCards);
     var i = 0;
     for (; i < roundSeq.length; i++) {
+        const operationFrame = getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false)
+        if (!operationFrame) {
+            continue;
+        }
         detail.appendChild(document.createElement('br'));
         const subDetail = getDetails(roundSeq[i], 'round');
         subDetail.setAttribute('class', 'operation-detail');
         subDetail.appendChild(getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false));
         detail.appendChild(subDetail);
     }
+    roundDetails.push(detail);
     parent.appendChild(detail);
+    getWinRate();
+}
+
+document.querySelector('.expand').addEventListener('click', (e) => {
+    var i = 0;
+    for (; i < roundDetails.length; i++) {
+        roundDetails[i].open = true;
+    }
+});
+
+document.querySelector('.collapse').addEventListener('click', (e) => {
+    var i = 0;
+    for (; i < roundDetails.length; i++) {
+        roundDetails[i].open = false;
+    }
+});
+
+function getSummary(msg) {
+
+}
+
+function getWinRate() {
+    const winRateLabel = document.querySelector('.win-rate');
+    const rate = winRound / totalRound;
+    winRateLabel.innerHTML = `Win Rate: ${rate} (${winRound}/${totalRound})`;
+}
+
+function parseHash(cards) {
+    var i = 1;
+    var alias = 65;
+    for (; i < cards.length; i++) {
+        const hash = Object.keys(cards[i])[0];
+        if (!(hash in hashMap)) {
+            if (myHash.indexOf(hash) >= 0) {
+                hashMap[hash] = 'Arbeit';
+            } else {
+                hashMap[hash] = String.fromCharCode(alias++);
+            }
+        }
+    }
 }
 
 function getOperationFrame(operations, withCards) {
+    if (operations.length == 0) {
+        return null;
+    }
     const frame = document.createElement('div');
     frame.setAttribute('class', 'operation-frame');
     var startIndex = 0;
@@ -83,10 +134,17 @@ function getWinner(win) {
     const name = document.createElement('label');
     name.innerHTML = 'Winner: ' + hashMap[hash];
     const chip = document.createElement('label');
+    chip.onclick  = function(e) {
+        e.stopPropagation();
+    }
     chip.setAttribute('class', 'chip');
     chip.innerHTML = ' + ' + win[hash];
     winnerDiv.appendChild(name);
     winnerDiv.appendChild(chip);
+    totalRound += 1;
+    if (myHash.indexOf(hash) >= 0) {
+        winRound += 1;
+    }
     return winnerDiv
 }
 
@@ -116,12 +174,19 @@ function getOperationPair(item) {
     return operationPair;
 }
 
-function getDetails(name, c) {
+function getDetails(name, c, summaryText = null) {
     const detail = document.createElement('details');
     const summary = document.createElement('summary');
+    summary.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
     detail.open = true;
     summary.setAttribute('class', c);
     summary.innerHTML = name;
+    if (summaryText) {
+        const winner = getWinner(summaryText);
+        summary.appendChild(winner);
+    }
     detail.appendChild(summary);
     return detail;
 }
@@ -129,17 +194,9 @@ function getDetails(name, c) {
 function getRenderedHandCards(cards) {
     const frame = document.createElement('div');
     frame.setAttribute('class', 'hand-cards');
-    var alias = 65;
     var i = 1;
     for (; i < cards.length; i++) {
-        var hash = Object.keys(cards[i])[0]
-            if (!(hash in hashMap)) {
-            if (myHash.indexOf(hash) >= 0) {
-                hashMap[hash] = 'Arbeit';
-            } else {
-                hashMap[hash] = String.fromCharCode(alias++);
-            }
-        }
+        var hash = Object.keys(cards[i])[0];
         const pair = document.createElement('div');
         pair.setAttribute('class', 'card-pair');
         const imgSet = document.createElement('div');

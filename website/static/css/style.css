@@ -4,6 +4,7 @@ body {
 
 summary {
     font-size: 24px;
+    display: inline-flex;
 }
 
 .play {
@@ -12,6 +13,22 @@ summary {
 
 .round {
 
+}
+
+.total-summary {
+    float: right;
+    display: inline-flex;
+    font-size: 24px;
+}
+
+.win-rate {
+    padding-right: 50px;
+}
+
+.detail-operation {
+    padding-left: 50px;
+    padding-right: 20px;
+    text-decoration: underline;
 }
 
 .hand-cards {

@@ -30,7 +30,8 @@ class Socket(tornado.websocket.WebSocketHandler):
         print('Open a web socket.')
         SocketManager.add_connection(self)
         if content:
-            self.write_message(content.get('0001'))
+            for key in content:
+                self.write_message(content.get(key))
 
     def on_close(self):
         print('Close a web socket.')

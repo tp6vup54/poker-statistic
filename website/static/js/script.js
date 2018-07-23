@@ -1,5 +1,5 @@
 const socket = new WebSocket('ws://' + location.host + '/socket');
-const myHash = '6ff67167cdf5f3734d43497f6d7bd779';
+const myHash = ['6ff67167cdf5f3734d43497f6d7bd779'];
 var count = 1;
 var hashMap = {};
 const charMap = {
@@ -35,12 +35,14 @@ socket.onmessage = function(e) {
     const parent = document.querySelector('body');
     const detail = getDetails(count++, 'play');
     const handCards = getRenderedHandCards(msg.cards);
+    handCards.appendChild(getWinner(msg[' win'][0]));
     detail.appendChild(handCards);
     var i = 0;
     for (; i < roundSeq.length; i++) {
         detail.appendChild(document.createElement('br'));
         const subDetail = getDetails(roundSeq[i], 'round');
-        subDetail.appendChild(getOperationFrame(msg.deal, false));
+        subDetail.setAttribute('class', 'operation-detail');
+        subDetail.appendChild(getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false));
         detail.appendChild(subDetail);
     }
     parent.appendChild(detail);
@@ -51,6 +53,8 @@ function getOperationFrame(operations, withCards) {
     frame.setAttribute('class', 'operation-frame');
     var startIndex = 0;
     if (withCards) {
+        const imgSet = getOperationCards(operations[0]);
+        frame.appendChild(imgSet);
         startIndex = 1;
     }
     for (; startIndex < operations.length; startIndex++) {
@@ -59,6 +63,9 @@ function getOperationFrame(operations, withCards) {
         item.setAttribute('class', 'operation-item');
         item.appendChild(getOperationPair(operations[startIndex][k]));
         item.appendChild(getNameLabel(k));
+        if (myHash.indexOf(k) >= 0) {
+            item.className += ' ' + 'my';
+        }
         frame.appendChild(item);
         if (startIndex < operations.length - 1) {
             const i = document.createElement('i');
@@ -67,6 +74,32 @@ function getOperationFrame(operations, withCards) {
         }
     }
     return frame;
+}
+
+function getWinner(win) {
+    const hash = Object.keys(win);
+    const winnerDiv = document.createElement('div');
+    winnerDiv.setAttribute('class', 'winner');
+    const name = document.createElement('label');
+    name.innerHTML = 'Winner: ' + hashMap[hash];
+    const chip = document.createElement('label');
+    chip.setAttribute('class', 'chip');
+    chip.innerHTML = ' + ' + win[hash];
+    winnerDiv.appendChild(name);
+    winnerDiv.appendChild(chip);
+    return winnerDiv
+}
+
+function getOperationCards(cards) {
+    var i = 0;
+    const imgSet = document.createElement('div');
+    imgSet.setAttribute('class', 'img-set');
+    for (; i < cards.length; i++) {
+        const img = document.createElement('img');
+        img.setAttribute('src', getCardImgName(cards[i]));
+        imgSet.appendChild(img);
+    }
+    return imgSet;
 }
 
 function getOperationPair(item) {
@@ -101,7 +134,7 @@ function getRenderedHandCards(cards) {
     for (; i < cards.length; i++) {
         var hash = Object.keys(cards[i])[0]
             if (!(hash in hashMap)) {
-            if (hash == myHash) {
+            if (myHash.indexOf(hash) >= 0) {
                 hashMap[hash] = 'Arbeit';
             } else {
                 hashMap[hash] = String.fromCharCode(alias++);
@@ -119,6 +152,9 @@ function getRenderedHandCards(cards) {
         }
         pair.appendChild(imgSet);
         pair.appendChild(getNameLabel(hash));
+        if (myHash.indexOf(hash) >= 0) {
+            pair.className += ' ' + 'my';
+        }
         frame.appendChild(pair);
     }
     return frame;

@@ -21,6 +21,7 @@ summary {
 }
 
 .card-pair {
+    padding-top: 5px;
     padding-left: 10px;
     padding-right: 10px;
     display: block;
@@ -28,6 +29,15 @@ summary {
 }
 
 .img-set {
+}
+
+.my {
+    border: 2px solid MediumOrchid;
+    border-radius: 5px;
+}
+
+.operation-detail {
+    padding-left: 30px;
 }
 
 .operation-frame {
@@ -87,4 +97,14 @@ img {
     width: 60px;
     border: 1px solid gray;
     border-radius: 5px;
+}
+
+.winner {
+    padding-left: 50px;
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.chip {
+    color: OrangeRed;
 }

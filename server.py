@@ -59,6 +59,36 @@ class Socket(tornado.websocket.WebSocketHandler):
                 self.write_message(content.get(key))
 
 
+class GetNewLogUploaded(tornado.websocket.WebSocketHandler):
+    def open(self):
+        print('Open a GetNewLogUploaded socket.')
+        SocketManager.add_connection(self)
+
+    def on_close(self):
+        print('Close a GetNewLogUploaded socket.')
+        SocketManager.remove_connection(self)
+
+    def on_message(self, message):
+        print(message)
+
+    @classmethod
+    def update_log_message(cls, log_name):
+        print('Update new log message to clients.')
+        for c in SocketManager.connections:
+            c.write_message(log_name)
+
+
+class UploadLog(tornado.web.RequestHandler):
+    def post(self):
+        file_list = list(self.request.files.values())[0]
+        for f in file_list:
+            print('Get %s.' % f['filename'])
+            fh = open('battle-log/%s' % f['filename'], 'w')
+            fh.write(f['body'].decode())
+            self.finish(f['filename'] + ' is uploaded!!')
+            GetNewLogUploaded.update_log_message(f['filename'])
+
+
 def parse_meta_data():
     logs = os.listdir('battle-log')
     for l in logs:
@@ -89,6 +119,8 @@ if __name__ == '__main__':
         (r'/', Index),
         (r'/socket', Socket),
         (r'/meta', Meta),
+        (r'/upload_log', UploadLog),
+        (r'/get_log_updated', GetNewLogUploaded)
     ], **settings)
     app.listen(5000)
     tornado.ioloop.IOLoop.current().start()

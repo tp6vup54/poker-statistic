@@ -1,5 +1,6 @@
 const socket = new WebSocket('ws://' + location.host + '/socket');
 const meta = new WebSocket('ws://' + location.host + '/meta');
+const logUpdated = new WebSocket('ws://' + location.host + '/get_log_updated');
 const myHash = ['5151f1abcb8f36ec81f5911b8b39da75', 'ded7f0de5c208f5037c645cd552bd3d8'];
 var count = 1;
 var hashMap = {};
@@ -76,6 +77,17 @@ meta.onmessage = function(e) {
     for (; i < options.length; i++) {
         dateSelect.add(options[i]);
     }
+}
+
+logUpdated.onmessage = function(e) {
+    const msg = e.data;
+    console.log(msg);
+    const snackbar = document.getElementById("snackbar");
+    snackbar.innerHTML = `New log ${msg} was arrived! Refresh the page to get latest log!`;
+    snackbar.className = "show";
+    setTimeout(function() {
+        snackbar.className = snackbar.className.replace("show", "");
+    }, 3000);
 }
 
 function initialize() {

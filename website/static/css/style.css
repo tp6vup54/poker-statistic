@@ -41,7 +41,7 @@ summary {
     padding-top: 5px;
     padding-left: 10px;
     padding-right: 10px;
-    display: block;
+    display: grid;
     text-align: center;
 }
 
@@ -49,7 +49,7 @@ summary {
 }
 
 .my {
-    border: 2px solid MediumOrchid;
+    border: 5px solid MediumOrchid;
     border-radius: 5px;
 }
 
@@ -124,4 +124,8 @@ img {
 
 .chip {
     color: OrangeRed;
+}
+
+.player-name {
+    font-weight: bold;
 }

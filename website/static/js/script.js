@@ -1,7 +1,9 @@
 const socket = new WebSocket('ws://' + location.host + '/socket');
-const myHash = ['6ff67167cdf5f3734d43497f6d7bd779'];
+const meta = new WebSocket('ws://' + location.host + '/meta');
+const myHash = ['5151f1abcb8f36ec81f5911b8b39da75', 'ded7f0de5c208f5037c645cd552bd3d8'];
 var count = 1;
 var hashMap = {};
+var metaMap = {};
 var totalRound = 0;
 var winRound = 0;
 const roundDetails = [];
@@ -23,6 +25,7 @@ const suitMap = {
 const operationClass = {
     'raise': 'raise',
     'bet': 'raise',
+    'allin': 'raise',
     'call': 'call',
     'check': 'call',
     'fold': 'fold',
@@ -35,27 +38,124 @@ const roundSeq = [
 socket.onmessage = function(e) {
     const msg = JSON.parse(e.data);
     console.log(msg);
-    const parent = document.querySelector('body');
-    parseHash(msg.cards);
-    const detail = getDetails(count++, 'play', msg[' win'][0]);
-    const handCards = getRenderedHandCards(msg.cards);
-    detail.appendChild(handCards);
-    var i = 0;
-    for (; i < roundSeq.length; i++) {
-        const operationFrame = getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false)
-        if (!operationFrame) {
-            continue;
+    if (Object.keys(msg)[0] == 'self') {
+        updateSelfHash(msg['self']);
+    } else if (Object.keys(msg)[0] == 'final_chips') {
+        updateFinalChips(msg['final_chips']);
+    } else {
+        const parent = document.querySelector('body');
+        parseHash(msg.cards);
+        const detail = getDetails(count++, 'play', msg[' win'][0]);
+        const handCards = getRenderedHandCards(msg.cards);
+        detail.appendChild(handCards);
+        var i = 0;
+        for (; i < roundSeq.length; i++) {
+            const operationFrame = getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false)
+            if (!operationFrame) {
+                continue;
+            }
+            detail.appendChild(document.createElement('br'));
+            const subDetail = getDetails(roundSeq[i], 'round');
+            subDetail.setAttribute('class', 'operation-detail');
+            subDetail.appendChild(getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false));
+            detail.appendChild(subDetail);
         }
-        detail.appendChild(document.createElement('br'));
-        const subDetail = getDetails(roundSeq[i], 'round');
-        subDetail.setAttribute('class', 'operation-detail');
-        subDetail.appendChild(getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false));
-        detail.appendChild(subDetail);
+        roundDetails.push(detail);
+        parent.appendChild(detail);
+        getWinRate();
     }
-    roundDetails.push(detail);
-    parent.appendChild(detail);
-    getWinRate();
 }
+
+meta.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    console.log(msg);
+    metaMap = msg;
+    const dateSelect = document.querySelector('.date-select');
+    const options = getDataOptions(Object.keys(msg).sort());
+    var i = 0;
+    for (; i < options.length; i++) {
+        dateSelect.add(options[i]);
+    }
+}
+
+function initialize() {
+    count = 1;
+    hashMap = {};
+    totalRound = 0;
+    winRound = 0;
+    while (roundDetails.length) {
+        roundDetails.pop();
+    }
+    const chipLabel = document.querySelector('.final-chips')
+    chipLabel.innerHTML = '';
+    const winRateLabel = document.querySelector('.win-rate');
+    winRateLabel.innerHTML = '';
+}
+
+function updateSelfHash(hash) {
+    if (myHash.indexOf(hash) < 0) {
+        myHash.push(hash);
+    }
+}
+
+function updateFinalChips(chips) {
+    const chipLabel = document.querySelector('.final-chips');
+    chipLabel.innerHTML = `Chip lefts: ${chips}`;
+}
+
+function getDataOptions(dates) {
+    const options = [];
+    var i = 0;
+    for (; i < dates.length; i++) {
+        const o = document.createElement('option');
+        o.setAttribute('value', dates[i]);
+        o.innerHTML = dates[i];
+        options.push(o);
+    }
+    return options;
+}
+
+document.querySelector('.date-select').addEventListener('change', (e) => {
+    const roundSelect = document.querySelector('.round-select');
+    if (roundSelect.options.length > 1) {
+        var i = roundSelect.options.length - 1;
+        for (; i > 0; i--) {
+            roundSelect.remove(i);
+        }
+    }
+    if (!e.target.value) {
+        return;
+    }
+    const options = getRoundOptions(metaMap[e.target.value]);
+    var i = 0;
+    for (; i < options.length; i++) {
+        roundSelect.add(options[i]);
+    }
+});
+
+function getRoundOptions(rounds) {
+    const options = [];
+    var i = 0;
+    rounds.sort();
+    for (; i < rounds.length; i++) {
+        const o = document.createElement('option');
+        o.setAttribute('value', rounds[i]);
+        o.innerHTML = `Round ${i + 1}: ${rounds[i].slice(4, 10)}`;
+        options.push(o);
+    }
+    return options;
+}
+
+document.querySelector('.round-select').addEventListener('change', (e) => {
+    var i = 0;
+    for (; i < roundDetails.length; i++) {
+        roundDetails[i].parentNode.removeChild(roundDetails[i]);
+    }
+    initialize();
+    if (e.target.value) {
+        socket.send(e.target.value);
+    }
+});
 
 document.querySelector('.expand').addEventListener('click', (e) => {
     var i = 0;
@@ -71,10 +171,6 @@ document.querySelector('.collapse').addEventListener('click', (e) => {
     }
 });
 
-function getSummary(msg) {
-
-}
-
 function getWinRate() {
     const winRateLabel = document.querySelector('.win-rate');
     const rate = winRound / totalRound;
@@ -85,7 +181,11 @@ function parseHash(cards) {
     var i = 1;
     var alias = 65;
     for (; i < cards.length; i++) {
-        const hash = Object.keys(cards[i])[0];
+        const k = Object.keys(cards[i]);
+        if (k.indexOf('chips') >= 0) {
+            k.splice(k.indexOf('chips'), 1);
+        }
+        const hash = k[0];
         if (!(hash in hashMap)) {
             if (myHash.indexOf(hash) >= 0) {
                 hashMap[hash] = 'Arbeit';
@@ -128,7 +228,7 @@ function getOperationFrame(operations, withCards) {
 }
 
 function getWinner(win) {
-    const hash = Object.keys(win);
+    const hash = Object.keys(win)[0];
     const winnerDiv = document.createElement('div');
     winnerDiv.setAttribute('class', 'winner');
     const name = document.createElement('label');
@@ -196,7 +296,11 @@ function getRenderedHandCards(cards) {
     frame.setAttribute('class', 'hand-cards');
     var i = 1;
     for (; i < cards.length; i++) {
-        var hash = Object.keys(cards[i])[0];
+        const k = Object.keys(cards[i]);
+        if (k.indexOf('chips') >= 0) {
+            k.splice(k.indexOf('chips'), 1);
+        }
+        const hash = k[0];
         const pair = document.createElement('div');
         pair.setAttribute('class', 'card-pair');
         const imgSet = document.createElement('div');
@@ -209,12 +313,22 @@ function getRenderedHandCards(cards) {
         }
         pair.appendChild(imgSet);
         pair.appendChild(getNameLabel(hash));
+        if ('chips' in cards[i]) {
+            pair.appendChild(getChipsLabel(cards[i].chips));
+        }
         if (myHash.indexOf(hash) >= 0) {
             pair.className += ' ' + 'my';
         }
         frame.appendChild(pair);
     }
     return frame;
+}
+
+function getChipsLabel(chips) {
+    const chipLabel = document.createElement('label');
+    chipLabel.setAttribute('class', 'chip-left');
+    chipLabel.innerHTML = 'Left: ' + chips;
+    return chipLabel;
 }
 
 function getNameLabel(hash) {

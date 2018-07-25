@@ -1,16 +1,14 @@
 import os
 import json
-import tornado.ioloop
-import tornado.web
-import tornado.websocket
-import datetime
+from tornado import ioloop, web, websocket, concurrent
+from concurrent.futures import ThreadPoolExecutor
 
 
 content = None
 meta_logs_map = {}
 
 
-class Index(tornado.web.RequestHandler):
+class Index(web.RequestHandler):
     def get(self):
         self.render('website/templates/index.html')
 
@@ -26,9 +24,11 @@ class SocketManager(object):
     def remove_connection(cls, socket):
         cls.connections.remove(socket)
 
-class Meta(tornado.websocket.WebSocketHandler):
+
+class Meta(websocket.WebSocketHandler):
     def open(self):
         print('Open a meta socket.')
+        parse_meta_data()
         if meta_logs_map:
             self.write_message(meta_logs_map)
 
@@ -38,7 +38,8 @@ class Meta(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         print(message)
 
-class Socket(tornado.websocket.WebSocketHandler):
+
+class Socket(websocket.WebSocketHandler):
     exception_list = ['final_chips', 'self']
 
     def open(self):
@@ -59,7 +60,7 @@ class Socket(tornado.websocket.WebSocketHandler):
                 self.write_message(content.get(key))
 
 
-class GetNewLogUploaded(tornado.websocket.WebSocketHandler):
+class GetNewLogUploaded(websocket.WebSocketHandler):
     def open(self):
         print('Open a GetNewLogUploaded socket.')
         SocketManager.add_connection(self)
@@ -78,18 +79,28 @@ class GetNewLogUploaded(tornado.websocket.WebSocketHandler):
             c.write_message(log_name)
 
 
-class UploadLog(tornado.web.RequestHandler):
-    def post(self):
-        file_list = list(self.request.files.values())[0]
-        for f in file_list:
-            print('Get %s.' % f['filename'])
-            fh = open('battle-log/%s' % f['filename'], 'w')
-            fh.write(f['body'].decode())
-            self.finish(f['filename'] + ' is uploaded!!')
-            GetNewLogUploaded.update_log_message(f['filename'])
+class UploadLog(web.RequestHandler):
+    executor = ThreadPoolExecutor(os.cpu_count())
+
+    async def post(self):
+        print(self.request.files)
+        try:
+            file_list = list(self.request.files.values())[0]
+            for f in file_list:
+                await self.write_log_file(f)
+                GetNewLogUploaded.update_log_message(f['filename'])
+        except Exception as e:
+            print('Get exception: %s' % e)
+
+    @concurrent.run_on_executor
+    def write_log_file(self, f):
+        print('Get %s.' % f['filename'])
+        with open('battle-log/%s' % f['filename'], 'wb') as fh:
+            fh.write(f['body'])
 
 
 def parse_meta_data():
+    meta_logs_map.clear()
     logs = os.listdir('battle-log')
     for l in logs:
         date = l[:4]
@@ -113,9 +124,7 @@ settings = {
 
 
 if __name__ == '__main__':
-    # parse_full_json()
-    parse_meta_data()
-    app = tornado.web.Application([
+    app = web.Application([
         (r'/', Index),
         (r'/socket', Socket),
         (r'/meta', Meta),
@@ -123,4 +132,4 @@ if __name__ == '__main__':
         (r'/get_log_updated', GetNewLogUploaded)
     ], **settings)
     app.listen(5000)
-    tornado.ioloop.IOLoop.current().start()
+    ioloop.IOLoop.current().start()

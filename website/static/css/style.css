@@ -15,6 +15,14 @@ summary {
 
 }
 
+.detail {
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: .5em .5em 0;
+    margin-top: .5em;
+    background-color: WhiteSmoke;
+}
+
 .total-summary {
     float: right;
     display: inline-flex;
@@ -35,6 +43,7 @@ summary {
     padding-top: 10px;
     padding-bottom: 10px;
     display: inline-flex;
+    flex-wrap: wrap;
 }
 
 .card-pair {
@@ -55,12 +64,18 @@ summary {
 
 .operation-detail {
     padding-left: 30px;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: .5em .5em 0;
+    margin-bottom: .5em;
+    background-color: Gainsboro;
 }
 
 .operation-frame {
     padding-top: 5px;
     padding-bottom: 5px;
     display: inline-flex;
+    flex-wrap: wrap;
 }
 
 .operation-frame:before {

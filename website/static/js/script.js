@@ -1,7 +1,8 @@
 const socket = new WebSocket('ws://' + location.host + '/socket');
 const meta = new WebSocket('ws://' + location.host + '/meta');
 const logUpdated = new WebSocket('ws://' + location.host + '/get_log_updated');
-const myHash = ['5151f1abcb8f36ec81f5911b8b39da75', 'ded7f0de5c208f5037c645cd552bd3d8'];
+const myHash = [];
+const myName = 'Arbeit';
 var count = 1;
 var hashMap = {};
 var metaMap = {};
@@ -46,18 +47,21 @@ socket.onmessage = function(e) {
     } else {
         const parent = document.querySelector('body');
         parseHash(msg.cards);
-        const detail = getDetails(count++, 'play', msg[' win'][0]);
-        const handCards = getRenderedHandCards(msg.cards);
+        const detail = getDetails(count++, 'detail', 'play', msg['win']);
+        const handCards = getRenderedHandCards(msg.cards, msg.win);
         detail.appendChild(handCards);
         var i = 0;
         for (; i < roundSeq.length; i++) {
-            const operationFrame = getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false)
+            var operationFrame = null;
+            if (i > 0) {
+                operationFrame = getOperationFrame(msg[roundSeq[i]], true);
+            } else {
+                operationFrame = getOperationFrame(msg[roundSeq[i]], false, [msg['bigBlind'], msg['smallBlind']]);
+            }
             if (!operationFrame) {
                 continue;
             }
-            detail.appendChild(document.createElement('br'));
-            const subDetail = getDetails(roundSeq[i], 'round');
-            subDetail.setAttribute('class', 'operation-detail');
+            const subDetail = getDetails(roundSeq[i], 'operation-detail', 'round');
             subDetail.appendChild(getOperationFrame(msg[roundSeq[i]], i > 0 ? true : false));
             detail.appendChild(subDetail);
         }
@@ -185,7 +189,7 @@ document.querySelector('.collapse').addEventListener('click', (e) => {
 
 function getWinRate() {
     const winRateLabel = document.querySelector('.win-rate');
-    const rate = winRound / totalRound;
+    const rate = Math.round(winRound / totalRound * 100)/100;
     winRateLabel.innerHTML = `Win Rate: ${rate} (${winRound}/${totalRound})`;
 }
 
@@ -200,7 +204,7 @@ function parseHash(cards) {
         const hash = k[0];
         if (!(hash in hashMap)) {
             if (myHash.indexOf(hash) >= 0) {
-                hashMap[hash] = 'Arbeit';
+                hashMap[hash] = myName;
             } else {
                 hashMap[hash] = String.fromCharCode(alias++);
             }
@@ -208,7 +212,7 @@ function parseHash(cards) {
     }
 }
 
-function getOperationFrame(operations, withCards) {
+function getOperationFrame(operations, withCards, blinds = null) {
     if (operations.length == 0) {
         return null;
     }
@@ -219,6 +223,13 @@ function getOperationFrame(operations, withCards) {
         const imgSet = getOperationCards(operations[0]);
         frame.appendChild(imgSet);
         startIndex = 1;
+    }
+    if (blinds) {
+        const blindText = ['BB', 'SB'];
+        for (var i = 0; i < blinds.length; i++) {
+            operations.unshift({});
+            operations[0][Object.keys(blinds[i])[0]] = [blindText[i], Object.values(blinds[i])[0]];
+        }
     }
     for (; startIndex < operations.length; startIndex++) {
         const k = Object.keys(operations[startIndex])[0];
@@ -240,24 +251,60 @@ function getOperationFrame(operations, withCards) {
 }
 
 function getWinner(win) {
-    const hash = Object.keys(win)[0];
+    const winnerInfo = getWinnerInfo(win);
     const winnerDiv = document.createElement('div');
+    var hash = null;
+    var myStatusText = null;
     winnerDiv.setAttribute('class', 'winner');
     const name = document.createElement('label');
-    name.innerHTML = 'Winner: ' + hashMap[hash];
     const chip = document.createElement('label');
-    chip.onclick  = function(e) {
-        e.stopPropagation();
-    }
     chip.setAttribute('class', 'chip');
-    chip.innerHTML = ' + ' + win[hash];
-    winnerDiv.appendChild(name);
-    winnerDiv.appendChild(chip);
-    totalRound += 1;
-    if (myHash.indexOf(hash) >= 0) {
+    if (winnerInfo) {
+        hash = Object.keys(winnerInfo)[0];
+        name.innerHTML = hashMap[hash];
+        chip.innerHTML = ' + ' + winnerInfo[hash][0] + ' = ' + winnerInfo[hash][1];
+    } else {
+        name.innerHTML = 'No Winner';
+    }
+    if (myHash.indexOf(hash) < 0) {
+        myStatusText = getMyStatus(win);
+    } else {
         winRound += 1;
     }
+    winnerDiv.appendChild(name);
+    winnerDiv.appendChild(chip);
+    if (myStatusText) {
+        winnerDiv.appendChild(myStatusText);
+    }
+    totalRound += 1;
     return winnerDiv
+}
+
+function getMyStatus(win) {
+    var status = null;
+    for (var i = 0; i < win.length; i++) {
+        const hash = Object.keys(win[i])[0];
+        if (myHash.indexOf(hash) >= 0) {
+            status = win[i][hash].map(x => parseInt(x));
+            break;
+        }
+    }
+    const myStatus = document.createElement('label');
+    myStatus.setAttribute('class', 'my-status');
+    myStatus.innerHTML = `, ${myName}`;
+    myStatus.innerHTML += (status[0] >= 0 ? ' + ' : ' - ') + Math.abs(status[0]);
+    myStatus.innerHTML += ' = ' + status[1];
+    return myStatus;
+}
+
+function getWinnerInfo(win) {
+    for (var i = 0; i < win.length; i++) {
+        const chips = Object.values(win[i]);
+        if (parseInt(chips[0]) > 0) {
+            return win[i];
+        }
+    }
+    return null;
 }
 
 function getOperationCards(cards) {
@@ -286,14 +333,17 @@ function getOperationPair(item) {
     return operationPair;
 }
 
-function getDetails(name, c, summaryText = null) {
+function getDetails(name, detailClass, summaryClass, summaryText = null) {
     const detail = document.createElement('details');
     const summary = document.createElement('summary');
     summary.addEventListener('click', (e) => {
+        console.log('toggle');
+        detail.click();
         e.stopPropagation();
-    });
+    }, true);
     detail.open = true;
-    summary.setAttribute('class', c);
+    detail.setAttribute('class', detailClass);
+    summary.setAttribute('class', summaryClass);
     summary.innerHTML = name;
     if (summaryText) {
         const winner = getWinner(summaryText);
@@ -303,7 +353,7 @@ function getDetails(name, c, summaryText = null) {
     return detail;
 }
 
-function getRenderedHandCards(cards) {
+function getRenderedHandCards(cards, win) {
     const frame = document.createElement('div');
     frame.setAttribute('class', 'hand-cards');
     var i = 1;
@@ -325,8 +375,8 @@ function getRenderedHandCards(cards) {
         }
         pair.appendChild(imgSet);
         pair.appendChild(getNameLabel(hash));
-        if ('chips' in cards[i]) {
-            pair.appendChild(getChipsLabel(cards[i].chips));
+        if (win) {
+            pair.appendChild(getChipsLabel(win, hash));
         }
         if (myHash.indexOf(hash) >= 0) {
             pair.className += ' ' + 'my';
@@ -336,10 +386,20 @@ function getRenderedHandCards(cards) {
     return frame;
 }
 
-function getChipsLabel(chips) {
+function getChipsLabel(win, hash) {
     const chipLabel = document.createElement('label');
+    var currentWinInfo = null;
     chipLabel.setAttribute('class', 'chip-left');
-    chipLabel.innerHTML = 'Left: ' + chips;
+    for (var i = 0; i < win.length; i++) {
+        if (hash in win[i]) {
+            currentWinInfo = win[i][hash].map(x => parseInt(x));
+            break;
+        }
+    }
+    if (currentWinInfo) {
+        chipLabel.innerHTML = currentWinInfo[0] >= 0 ? '+' : '-';
+        chipLabel.innerHTML += Math.abs(currentWinInfo[0]) + ' = ' + currentWinInfo[1];
+    }
     return chipLabel;
 }
 
